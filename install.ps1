@@ -18,14 +18,25 @@ if (-Not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 $ProgressPreference = 'SilentlyContinue'
 $InformationPreference = 'Continue'
 
-$116Url = 'https://drive.usercontent.google.com/download?id=1jvMz-lftJBNEQLNchbR9CxbGQof1ulgC&export=download&authuser=4&confirm=t&uuid=8fa9b2c4-c76c-4a51-82fa-3400709491d2&at=APZUnTWAlfTsKv3bWSsRsllFYRKK:1692898677781'
-$118Url = 'https://drive.usercontent.google.com/download?id=1Od0qCZ_BoTU3Nv6TtlUz861guYPqrqKc&export=download&authuser=4&confirm=t&uuid=8256c431-c54f-4fcb-b444-5eb07cf3a74c&at=APZUnTUiUAQZRRxt1st1aUbxpMMT:1692898652772'
+$116Url = 'https://github.com/Mineage-Network/mv-fixed-appx/releases/download/1.0.1/1.16.100.4.appx'
+$118Url = 'https://github.com/Mineage-Network/mv-fixed-appx/releases/download/1.0.1/1.18.12.1.appx'
 
 Write-Information "mv-fixed-appx: really simple script to either install or switch to xbox authentication fixed versions of Minecraft (1.16.100.4 and 1.18.12.1)."
 Write-Information "Brought to you by mineage.us discord.gg/mineagenetwork"
-Start-Sleep -Seconds 3
-Write-Warning "This script will uninstall your current Minecraft installation including data (resource packs, keybinds, saved servers...). Running script in 5 seconds."
-Start-Sleep -Seconds 5
+Start-Sleep -Seconds 2
+Write-Warning "This script will replace your current Minecraft installation with a patched package (no renderdragon, fixed xbox authentication)."
+$choice = Read-Host -Prompt 'Enter 1 to proceed (the script automatically closes Minecraft if open), enter any other value to quit'
+if ($choice -eq 1) {
+    Write-Information "Killing Minecraft process..."
+    $processId = (Get-Process Minecraft.Windows).Id
+    Stop-Process -Id $processId
+    Write-Information "Done."
+    Start-Sleep -Seconds 1
+} else {
+    Write-Information "Quitting in 3 seconds..."
+    Start-Sleep -Seconds 3
+    Exit
+}
 
 $cerPath = 'null'
 $pfxPath = 'null'
@@ -36,7 +47,7 @@ if ( $choice ) {
     Write-Information "Choice entered successfully."
 } else {
     Write-Error -Message "You didn't enter a choice."
-    pause
+    Start-Sleep -Seconds 5
     Exit
 }
 
@@ -47,6 +58,7 @@ if (Test-Path $mvFixedAppxPath) {
 }
 New-Item -ItemType Directory -Path $mvFixedAppxPath
 Set-Location $mvFixedAppxPath
+New-Item -ItemType Directory -Path ($mvFixedAppxPath + '\oldData')
 
 Write-Information "Attempting to download required files..."
 $thumbprint = 'null'
@@ -89,6 +101,19 @@ $params = @{
 }
 Import-PfxCertificate @params
 
+$isBackupActive = Read-Host -Prompt 'Do you want to keep your data? Enter 1 to keep it, enter 2 to discard it'
+$baseDir = 'C:\Users\' + [Environment]::UserName + '\AppData\Local\Packages'
+$dataDir = 'null'
+if ($isBackupActive -eq 1) {
+    $dataDir = ($baseDir + '\Microsoft.MinecraftUWP_8wekyb3d8bbwe')
+    if (Test-Path $dataDir) {
+        Copy-Item -LiteralPath $dataDir -Recurse -Destination ($mvFixedAppxPath + '\oldData')
+    } else {
+        Write-Warning "You don't have any data related to Minecraft."
+        $isBackupActive = '2'
+    }
+}
+
 if( Get-AppxPackage *minecraft* ) {
     Write-Information "Attempting to uninstall Minecraft..."
     Get-AppxPackage *minecraft* | Remove-AppxPackage
@@ -120,6 +145,13 @@ if( Get-AppxPackage *minecraft* ) {
     Write-Warning "Closing Powershell script in 5 seconds..."
     Start-Sleep -Seconds 5
     Exit
+}
+
+if ($isBackupActive -eq 1) {
+    if (Test-Path $dataDir) {
+        Remove-Item -Path $dataDir -Recurse -Force
+    }
+    Copy-Item -LiteralPath ($mvFixedAppxPath + '\oldData\Microsoft.MinecraftUWP_8wekyb3d8bbwe') -Recurse -Destination $baseDir
 }
 
 Write-Information "Deleting temp files..."
